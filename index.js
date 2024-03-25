@@ -89,7 +89,7 @@ dataobj.classProps.forEach(feat => {
     const newSVGString = new XMLSerializer().serializeToString(docGeoPos);
     geoFromSVGXML( newSVGString, layer => {
         layer.features.forEach(feature => {
-            feature.properties = feat.propreties
+            feature.properties = feat.properties
         })
         
         geojsonResult.features = geojsonResult.features.concat(layer.features)
