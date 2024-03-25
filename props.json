@@ -1,0 +1,40 @@
+{
+    "classProps" : [
+        {
+            "className":"grandstand1",
+            "propreties":{
+                "type":"grandstand"
+            }
+        },
+        {
+            "className":"grandstand2",
+            "propreties":{
+                "type":"grandstand"
+            }
+        },
+        {
+            "className":"grandstand3",
+            "propreties":{
+                "type":"grandstand"
+            }
+        },
+        {
+            "className":"grandstand4",
+            "propreties":{
+                "type":"grandstand"
+            }
+        },
+        {
+            "className":"field",
+            "propreties":{
+                "type":"field"
+            }
+        },
+        {
+            "className":"stadium",
+            "propreties":{
+                "type":"stadium"
+            }
+        }   
+    ]
+}

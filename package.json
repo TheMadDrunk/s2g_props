@@ -9,6 +9,7 @@
   "author": "TheMadDrunk",
   "license": "ISC",
   "dependencies": {
+    "@bettercorp/svg-to-geojson": "^1.0.1",
     "svg2geojson": "^0.7.1",
     "svgdom": "^0.1.19",
     "xmldom": "^0.6.0",
