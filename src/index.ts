@@ -171,6 +171,29 @@ function convertRectToGeoJson(svgDoc: Document, images: Array<ImageIdURL>) {
     return {sources: sources, layers: layers}
 }
 
+const STYLESPEC = {
+    "version": 8,
+    "name": "Empty Style",
+    "metadata": {"maputnik:renderer": "mlgljs"},
+    "sources": {
+    },
+    "sprite": "",
+    "glyphs": "https://orangemug.github.io/font-glyphs/glyphs/{fontstack}/{range}.pbf",
+    "layers": [
+        {
+            "id": "visisbleSvg",
+            "type": "fill",
+            "source": "svg",
+            "paint": {
+                "fill-opacity": 0.7,
+                "fill-color": "rgba(97, 92, 92, 1)",
+                "fill-translate-anchor": "map"
+            }
+        }
+    ],
+    "id": "90jrguv"
+}
+
 export function convertFromString(svgString: string, specs: {
     specifications: Array<Specification>,
     images: Array<ImageIdURL>
@@ -184,8 +207,7 @@ export function convertFromString(svgString: string, specs: {
     const geosjon = convertGroupsToGeoJson(svgDoc, specs.specifications)
     console.log("converted svg to geojson")
 
-    let styleString = fs.readFileSync('empty_style.json', {encoding: 'utf-8'})
-    let style = JSON.parse(styleString)
+    const style = {...STYLESPEC}
     style.sources.svg = {
         "type": "geojson",
         "cluster": false,
