@@ -1,12 +1,8 @@
-/*const { geoFromSVGXML } = require('svg2geojson');
-const { DOMParser, XMLSerializer } = require('xmldom-qsa');
-const { v4: uuidv4 } = require('uuid');*/
-
 // @ts-ignore
 import {geoFromSVGXML} from 'svg2geojson';
 import {DOMParser, XMLSerializer} from 'xmldom-qsa';
 import {v4 as uuidv4} from "uuid";
-import * as fs from "fs";
+
 
 export type Feature = {
     "type": "Feature",
@@ -42,11 +38,46 @@ export type ImageSource = {
     "coordinates": Array<Array<number>>
 }
 
-export type RasterLayer = {
+export type StyleLayer = {
     "id": string,
-    "type": "raster",
-    "source": string
+    "type": string,
+    "source": string,
+    paint: any
 }
+
+type StyleSpec = {
+    version: number;
+    name: string;
+    metadata: { [key: string]: string };
+    sources: { [key: string]: any };
+    sprite: string;
+    glyphs: string;
+    layers: StyleLayer[];
+    id: string;
+};
+
+const STYLESPEC: StyleSpec = {
+    version: 8,
+    name: "Empty Style",
+    metadata: { "maputnik:renderer": "mlgljs" },
+    sources: {},
+    sprite: "",
+    glyphs: "https://orangemug.github.io/font-glyphs/glyphs/{fontstack}/{range}.pbf",
+    layers: [
+        {
+            id: "visisbleSvg",
+            type: "fill",
+            source: "svg",
+            paint: {
+                "fill-opacity": 0.7,
+                "fill-color": "rgba(97, 92, 92, 1)",
+                "fill-translate-anchor": "map"
+            }
+        }
+    ],
+    id: "90jrguv"
+};
+
 
 const GEOITEMSVG = `
         <svg xmlns="http://www.w3.org/2000/svg"><MetaInfo xmlns="http://www.prognoz.ru"><Geo>
@@ -143,7 +174,7 @@ function convertGroupsToGeoJson(doc: Document, specifications: Array<Specificati
 function convertRectToGeoJson(svgDoc: Document, images: Array<ImageIdURL>) {
 
     const sources: { [id: string]: ImageSource } = {};
-    const layers: Array<RasterLayer> = []
+    const layers: Array<StyleLayer> = []
 
     images.forEach(image => {
         const docGeoPos = new DOMParser().parseFromString(GEOITEMSVG, 'image/svg+xml');
@@ -165,39 +196,19 @@ function convertRectToGeoJson(svgDoc: Document, images: Array<ImageIdURL>) {
             let coordinates = layer.features[0].geometry.coordinates[0].slice(0, 4)
             console.log(coordinates)
             sources[image.id] = <ImageSource>{url: image.imageURL, coordinates: coordinates, type: 'image'};
-            layers.push({id: image.id, type: "raster", source: image.id})
+            layers.push({paint: undefined, id: image.id, type: "raster", source: image.id})
         })
     })
     return {sources: sources, layers: layers}
 }
 
-const STYLESPEC = {
-    "version": 8,
-    "name": "Empty Style",
-    "metadata": {"maputnik:renderer": "mlgljs"},
-    "sources": {
-    },
-    "sprite": "",
-    "glyphs": "https://orangemug.github.io/font-glyphs/glyphs/{fontstack}/{range}.pbf",
-    "layers": [
-        {
-            "id": "visisbleSvg",
-            "type": "fill",
-            "source": "svg",
-            "paint": {
-                "fill-opacity": 0.7,
-                "fill-color": "rgba(97, 92, 92, 1)",
-                "fill-translate-anchor": "map"
-            }
-        }
-    ],
-    "id": "90jrguv"
-}
-
-export function convertFromString(svgString: string, specs: {
-    specifications: Array<Specification>,
-    images: Array<ImageIdURL>
-}) {
+export function convertFromString(svgString: string,
+                                  specs: {
+                                      specifications: Array<Specification>,
+                                      images: Array<ImageIdURL>
+                                  },
+                                  styleSpec: StyleSpec = STYLESPEC
+) {
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
 
@@ -207,7 +218,7 @@ export function convertFromString(svgString: string, specs: {
     const geosjon = convertGroupsToGeoJson(svgDoc, specs.specifications)
     console.log("converted svg to geojson")
 
-    const style = {...STYLESPEC}
+    const style = {...styleSpec}
     style.sources.svg = {
         "type": "geojson",
         "cluster": false,

@@ -10,6 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "@types/node": "^20.11.30",
+    "events": "^3.3.0",
     "svg2geojson": "^0.7.1",
     "uuid": "^9.0.1",
     "xmldom-qsa": "^1.1.3"
