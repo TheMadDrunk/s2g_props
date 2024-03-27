@@ -1,14 +1,13 @@
-
 # svg2geojson-properties
 
-This package provides a function `convertFromString` to convert SVG data into GeoJSON format and add properties, including a UUID, to the features based on provided configurations.
+This package provides a function `convertFromString` to convert SVG data into a map style format compatible with tools like Mapbox and MapLibre. It adds properties, including a UUID, to the features based on provided configurations and includes additional images with layers to make them visible on the map.
 
 ## Installation
 
 You can install the package via npm:
 
 ```bash
-npm install svg2geojson-properties
+npm install s2g_props
 ```
 
 ## Usage
@@ -18,18 +17,18 @@ const fs = require('fs');
 const { convertFromString } = require('svg2geojson-properties');
 
 const svgString = fs.readFileSync('path/to/your/svg/file.svg').toString();
-const props = fs.readFileSync('path/to/your/props.json').toString();
+const props = fs.readFileSync('path/to/your/config.json').toString();
 const propsParsed = JSON.parse(props);
 
-const geojsonData = convertFromString(svgString, propsParsed);
+const mapStyleData = convertFromString(svgString, propsParsed);
 
-fs.writeFileSync('output.geojson', JSON.stringify(geojsonData));
+fs.writeFileSync('output_map_style.json', JSON.stringify(mapStyleData));
 ```
 
 ### Parameters
 
 - `svgString` (string): SVG data to convert.
-- `config` (object): Configuration object containing class names and properties.
+- `config` (object): Configuration object containing class names, properties, and images.
 
 ### Example `props.json`
 
@@ -54,35 +53,60 @@ fs.writeFileSync('output.geojson', JSON.stringify(geojsonData));
                 "class":"grandstand"
             }
         }
+    ],
+    "images" : [
+        {
+            "id": "image",
+            "imageURL": "yourimageurl.jpg"
+        }
     ]
 }
 ```
 
 ## Output
 
-The function returns a GeoJSON object with added properties, including a UUID, based on the configurations provided.
+The function returns a map style object containing the converted SVG to GeoJSON and additional images with layers to make them visible on the map.
 
 ```json
 {
-    "type": "FeatureCollection",
-    "creator": "svg2geojson + properties",
-    "features": [
-        {
-            "type": "Feature",
-            "properties": {
-                "class": "stadium",
-                "uuid": "11715a49-62fc-4375-9cff-29c30048b039"
-            },
-            "geometry": {
-                "type": "Polygon",
-                "coordinates": [...]
-            }
-        },
-        ...
-    ]
+  "metadata": {
+    "maputnik:renderer": "mlgljs"
+  },
+  "sources": {
+    "svg": {
+      "type": "geojson",
+      "cluster": false,
+      "data": // the converted svg to geojson
+    },
+    "image": {
+      "url": "yourimageurl.jpg",
+      "coordinates": //coordinates that we got from a path with id = image (like in the config)
+      "type": "image"
+    }
+  },
+  "sprite": "",
+  "glyphs": "https://orangemug.github.io/font-glyphs/glyphs/{fontstack}/{range}.pbf",
+  "layers": [
+    {
+      "id": "visisbleSvg",
+      "type": "fill",
+      "source": "svg",
+      "paint": {
+        "fill-opacity": 0.7,
+        "fill-color": "rgba(97, 92, 92, 1)",
+        "fill-translate-anchor": "map"
+      }
+    },
+    {
+      "id": "image",
+      "type": "raster",
+      "source": "image"
+    }
+  ],
+  "id": "90jrguv"
 }
 ```
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License
