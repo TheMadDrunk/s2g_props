@@ -1,40 +1,28 @@
 {
-    "classProps" : [
+    "specifications" : [
         {
-            "className":"grandstand1",
+            "classList": ["stadium"],
             "properties":{
-                "type":"grandstand"
+                "class":"stadium"
             }
         },
         {
-            "className":"grandstand2",
+            "classList":["field"],
             "properties":{
-                "type":"grandstand"
+                "class":"field"
             }
         },
         {
-            "className":"grandstand3",
+            "classList":["grandstand1","grandstand2","grandstand3","grandstand4"],
             "properties":{
-                "type":"grandstand"
+                "class":"grandstand"
             }
-        },
+        }
+    ],
+    "images" : [
         {
-            "className":"grandstand4",
-            "properties":{
-                "type":"grandstand"
-            }
-        },
-        {
-            "className":"field",
-            "properties":{
-                "type":"field"
-            }
-        },
-        {
-            "className":"stadium",
-            "properties":{
-                "type":"stadium"
-            }
-        }   
+            "id": "image",
+            "imageURL": "https://upload.wikimedia.org/wikipedia/en/b/b9/Elden_Ring_Box_art.jpg"
+        }
     ]
 }
