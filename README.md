@@ -30,7 +30,6 @@ fs.writeFileSync('output.geojson', JSON.stringify(geojsonData));
 
 - `svgString` (string): SVG data to convert.
 - `config` (object): Configuration object containing class names and properties.
-- `style` (object, optional): Style object.
 
 ### Example `props.json`
 

@@ -2,10 +2,9 @@
   "name": "s2g_props",
   "version": "1.0.0",
   "description": "covert svg to geosjon and allow to add properties to the geojson features",
-  "main": "index.ts",
+  "main": "src/index.ts",
   "scripts": {
-    "build": "tsc index.ts test.ts",
-    "dev": "node test.js"
+    "build": "tsc"
   },
   "author": "TheMadDrunk",
   "license": "ISC",
