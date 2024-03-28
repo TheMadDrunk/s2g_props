@@ -175,7 +175,7 @@ function convertRectToGeoJson(svgDoc: Document, images: Array<ImageIdURL>) {
 
     const sources: { [id: string]: ImageSource } = {};
     const layers: Array<StyleLayer> = []
-
+    if(images)
     images.forEach(image => {
         const docGeoPos = new DOMParser().parseFromString(GEOITEMSVG, 'image/svg+xml');
         const rect = svgDoc.getElementById(image.id)
@@ -227,7 +227,7 @@ export function convertFromString(svgString: string,
 
     const {sources, layers} = convertRectToGeoJson(svgDoc, specs.images)
 
-    Object.keys(sources).forEach(src => {
+    Object.keys(sources)?.forEach(src => {
         style.sources[src] = sources[src]
     })
     layers.forEach(layer => {
