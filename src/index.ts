@@ -159,7 +159,6 @@ function convertGroupsToGeoJson(doc: Document, specifications: Array<Specificati
         geoFromSVGXML(newSVGString, layer => {
             layer.features.forEach(feature => {
                 feature.properties = spec.properties
-                feature.properties.id = uuidv4();
             })
 
             geojson.features = geojson.features.concat(layer.features)
@@ -216,13 +215,18 @@ export function convertFromString(svgString: string,
     console.log("converted circles to paths")
 
     const geosjon = convertGroupsToGeoJson(svgDoc, specs.specifications)
+    const testg = JSON.stringify(geosjon)
+    const geojson =  JSON.parse(testg)
+    geojson.features.forEach(feature => {
+        feature.properties.id = uuidv4();
+    })
     console.log("converted svg to geojson")
 
     const style = {...styleSpec}
     style.sources.svg = {
         "type": "geojson",
         "cluster": false,
-        "data": geosjon
+        "data": geojson
     }
 
     const {sources, layers} = convertRectToGeoJson(svgDoc, specs.images)
@@ -233,6 +237,7 @@ export function convertFromString(svgString: string,
     layers.forEach(layer => {
         style.layers.push(layer)
     })
+
 
     return style;
 }
