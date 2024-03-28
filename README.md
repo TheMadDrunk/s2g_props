@@ -14,7 +14,7 @@ npm install s2g_props
 
 ```javascript
 const fs = require('fs');
-const { convertFromString } = require('svg2geojson-properties');
+const { convertFromString } = require('svg2_props');
 
 const svgString = fs.readFileSync('path/to/your/svg/file.svg').toString();
 const props = fs.readFileSync('path/to/your/config.json').toString();
@@ -29,7 +29,7 @@ fs.writeFileSync('output_map_style.json', JSON.stringify(mapStyleData));
 
 - `svgString` (string): SVG data to convert.
 - `config` (object): Configuration object containing class names, properties, and images.
-
+- `styleSpec` (object)(optional): give it the template of your style specs it will add the source and the necessary style layers
 ### Example `props.json`
 
 ```json
