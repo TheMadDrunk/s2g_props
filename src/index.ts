@@ -1,6 +1,7 @@
 // @ts-ignore
 import {geoFromSVGXML} from 'svg2geojson';
 import {DOMParser, XMLSerializer} from 'xmldom-qsa';
+// @ts-ignore
 import {v4 as uuidv4} from "uuid";
 
 
@@ -156,8 +157,9 @@ function convertGroupsToGeoJson(doc: Document, specifications: Array<Specificati
         });
 
         const newSVGString = new XMLSerializer().serializeToString(docGeoPos);
+        // @ts-ignore
         geoFromSVGXML(newSVGString, layer => {
-            layer.features.forEach(feature => {
+            layer.features.forEach((feature: { properties: { class: string; id: string; }; }) => {
                 feature.properties = spec.properties
             })
 
@@ -189,7 +191,7 @@ function convertRectToGeoJson(svgDoc: Document, images: Array<ImageIdURL>) {
 
         const newSVGString = new XMLSerializer().serializeToString(docGeoPos);
 
-        geoFromSVGXML(newSVGString, layer => {
+        geoFromSVGXML(newSVGString, (layer: { features: string | any[]; }) => {
             if (layer.features.length != 1)
                 return;
             let coordinates = layer.features[0].geometry.coordinates[0].slice(0, 4)
@@ -217,7 +219,7 @@ export function convertFromString(svgString: string,
     const geosjon = convertGroupsToGeoJson(svgDoc, specs.specifications)
     const testg = JSON.stringify(geosjon)
     const geojson =  JSON.parse(testg)
-    geojson.features.forEach(feature => {
+    geojson.features.forEach((feature: { properties: { id: any; }; }) => {
         feature.properties.id = uuidv4();
     })
     console.log("converted svg to geojson")
