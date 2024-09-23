@@ -1,8 +1,8 @@
 // @ts-ignore
-import {geoFromSVGXML} from 'svg2geojson';
-import {DOMParser, XMLSerializer} from 'xmldom-qsa';
+import { geoFromSVGXML } from 'svg2geojson';
+import { DOMParser, XMLSerializer } from 'xmldom-qsa';
 // @ts-ignore
-import {v4 as uuidv4} from "uuid";
+import { v4 as uuidv4 } from "uuid";
 
 
 export type Feature = {
@@ -176,40 +176,41 @@ function convertRectToGeoJson(svgDoc: Document, images: Array<ImageIdURL>) {
 
     const sources: { [id: string]: ImageSource } = {};
     const layers: Array<StyleLayer> = []
-    if(images)
-    images.forEach(image => {
-        const docGeoPos = new DOMParser().parseFromString(GEOITEMSVG, 'image/svg+xml');
-        const rect = svgDoc.getElementById(image.id)
+    if (images)
+        images.forEach(image => {
+            const docGeoPos = new DOMParser().parseFromString(GEOITEMSVG, 'image/svg+xml');
+            const rect = svgDoc.getElementById(image.id)
 
-        if (!rect) {
-            console.log(`Id '${image.id}' not found`)
-            return;
-        }
-
-        const cloneRect = rect.cloneNode(true)
-        docGeoPos.documentElement.appendChild(cloneRect);
-
-        const newSVGString = new XMLSerializer().serializeToString(docGeoPos);
-
-        geoFromSVGXML(newSVGString, (layer: { features: string | any[]; }) => {
-            if (layer.features.length != 1)
+            if (!rect) {
+                console.log(`Id '${image.id}' not found`)
                 return;
-            let coordinates = layer.features[0].geometry.coordinates[0].slice(0, 4)
-            console.log(coordinates)
-            sources[image.id] = <ImageSource>{url: image.imageURL, coordinates: coordinates, type: 'image'};
-            layers.push({paint: undefined, id: image.id, type: "raster", source: image.id})
+            }
+
+            const cloneRect = rect.cloneNode(true)
+            docGeoPos.documentElement.appendChild(cloneRect);
+
+            const newSVGString = new XMLSerializer().serializeToString(docGeoPos);
+
+            geoFromSVGXML(newSVGString, (layer: { features: string | any[]; }) => {
+                if (layer.features.length != 1)
+                    return;
+                let coordinates = layer.features[0].geometry.coordinates[0].slice(0, 4)
+                console.log(coordinates)
+                sources[image.id] = <ImageSource>{ url: image.imageURL, coordinates: coordinates, type: 'image' };
+                layers.push({ paint: undefined, id: image.id, type: "raster", source: image.id })
+            })
         })
-    })
-    return {sources: sources, layers: layers}
+    return { sources: sources, layers: layers }
 }
 
-export function convertFromString(svgString: string,
-                                  specs: {
-                                      specifications: Array<Specification>,
-                                      images: Array<ImageIdURL>
-                                  },
-                                  styleSpec: StyleSpec = STYLESPEC
-) {
+export function convertFromString
+    (svgString: string,
+        specs: {
+            specifications: Array<Specification>,
+            images: Array<ImageIdURL>
+        },
+        styleSpec: StyleSpec = STYLESPEC
+    ) {
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
 
@@ -218,20 +219,20 @@ export function convertFromString(svgString: string,
 
     const geosjon = convertGroupsToGeoJson(svgDoc, specs.specifications)
     const testg = JSON.stringify(geosjon)
-    const geojson =  JSON.parse(testg)
+    const geojson = JSON.parse(testg)
     geojson.features.forEach((feature: { properties: { id: any; }; }) => {
         feature.properties.id = uuidv4();
     })
     console.log("converted svg to geojson")
 
-    const style = {...styleSpec}
+    const style = { ...styleSpec }
     style.sources.svg = {
         "type": "geojson",
         "cluster": false,
         "data": geojson
     }
 
-    const {sources, layers} = convertRectToGeoJson(svgDoc, specs.images)
+    const { sources, layers } = convertRectToGeoJson(svgDoc, specs.images)
 
     Object.keys(sources)?.forEach(src => {
         style.sources[src] = sources[src]
