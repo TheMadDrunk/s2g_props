@@ -81,10 +81,14 @@ const STYLESPEC: StyleSpec = {
 
 
 const GEOITEMSVG = `
-        <svg xmlns="http://www.w3.org/2000/svg"><MetaInfo xmlns="http://www.prognoz.ru"><Geo>
-        <GeoItem X="-595.30" Y="-142.88" Latitude="37.375593" Longitude="-121.977795"/>
-        <GeoItem X="1388.66" Y=" 622.34" Latitude="37.369930" Longitude="-121.959404"/>
-        </Geo></MetaInfo></svg>`
+        <svg xmlns="http://www.w3.org/2000/svg">
+            <MetaInfo xmlns="http://www.prognoz.ru">
+                <Geo>
+                    <GeoItem X="-595.30" Y="-142.88" Latitude="37.375593" Longitude="-121.977795"/>
+                    <GeoItem X="1388.66" Y=" 622.34" Latitude="37.369930" Longitude="-121.959404"/>
+                </Geo>
+            </MetaInfo>
+        </svg>`
 
 function circleToPath(circle: SVGCircleElement) {
     const cx = parseFloat(<string>circle.getAttribute('cx'));
@@ -176,46 +180,108 @@ function convertRectToGeoJson(svgDoc: Document, images: Array<ImageIdURL>) {
 
     const sources: { [id: string]: ImageSource } = {};
     const layers: Array<StyleLayer> = []
-    if (images)
-        images.forEach(image => {
-            const docGeoPos = new DOMParser().parseFromString(GEOITEMSVG, 'image/svg+xml');
-            const rect = svgDoc.getElementById(image.id)
+    if (!images)
+        return { sources: sources, layers: layers }
+    images.forEach(image => {
+        const docGeoPos = new DOMParser().parseFromString(GEOITEMSVG, 'image/svg+xml');
+        const rect = svgDoc.getElementById(image.id)
 
-            if (!rect) {
-                console.log(`Id '${image.id}' not found`)
+        if (!rect) {
+            console.log(`Id '${image.id}' not found`)
+            return;
+        }
+
+        const cloneRect = rect.cloneNode(true)
+        docGeoPos.documentElement.appendChild(cloneRect);
+
+        const newSVGString = new XMLSerializer().serializeToString(docGeoPos);
+
+        geoFromSVGXML(newSVGString, (layer: { features: string | any[]; }) => {
+            if (layer.features.length != 1)
                 return;
-            }
-
-            const cloneRect = rect.cloneNode(true)
-            docGeoPos.documentElement.appendChild(cloneRect);
-
-            const newSVGString = new XMLSerializer().serializeToString(docGeoPos);
-
-            geoFromSVGXML(newSVGString, (layer: { features: string | any[]; }) => {
-                if (layer.features.length != 1)
-                    return;
-                let coordinates = layer.features[0].geometry.coordinates[0].slice(0, 4)
-                console.log(coordinates)
-                sources[image.id] = <ImageSource>{ url: image.imageURL, coordinates: coordinates, type: 'image' };
-                layers.push({ paint: undefined, id: image.id, type: "raster", source: image.id })
-            })
+            let coordinates = layer.features[0].geometry.coordinates[0].slice(0, 4)
+            console.log(coordinates)
+            sources[image.id] = <ImageSource>{ url: image.imageURL, coordinates: coordinates, type: 'image' };
+            layers.push({ paint: undefined, id: image.id, type: "raster", source: image.id })
         })
+    })
     return { sources: sources, layers: layers }
 }
+
+export interface SVGNode {
+    class: string,
+    classList: Array<string>,
+    properties: { [key: string]: string },
+    children?: Array<SVGNode>,
+}
+
+export function convertFromStringv2(svgString: string, specs: SVGNode) {
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
+
+    const limit = 4;
+    const rootElement = svgDoc.documentElement;
+    const features = convertTree(rootElement, specs, limit);
+
+    return features;
+}
+
+
+function convertTree(element: Element, specs: SVGNode, limit: number): Feature[] {
+    console.log(
+        "--".repeat(limit) + "> "
+        + "." + element.getAttribute('class')
+        + "#" + element.getAttribute('id')
+        + " on " + specs.class)
+
+    if (limit <= 0) {
+        console.log("Limit reached")
+        return [];
+    }
+
+
+    const svgSelector = specs.classList.map(className => "g." + className).join(', ');
+    const childrenElements = element.querySelectorAll(svgSelector)
+    let componentElements = Array.from(element.childNodes).filter(child => {
+        return child.nodeType === 1 && !(child as Element).matches(svgSelector);
+    });
+
+    console.log("all:", element?.childNodes?.length)
+    console.log("componentElements:", componentElements?.length)
+    console.log("childrenElements:", childrenElements.length)
+
+    let features: Feature[] = []
+    if (specs.children) {
+        specs.children.forEach(child => {
+            childrenElements.forEach(group => {
+                features = features.concat(convertTree(group, child, limit - 1))
+            })
+        })
+    }
+
+    if (componentElements.length > 0)
+        features = features.concat(convertElementToGeoJsonFeature(componentElements))
+    if (!specs.children && childrenElements.length > 0)
+        features = features.concat(convertElementToGeoJsonFeature(Array.from(childrenElements)))
+
+    return features;
+}
+
+
 
 export function convertFromString
     (svgString: string,
         specs: {
             specifications: Array<Specification>,
-            images: Array<ImageIdURL>
+            images?: Array<ImageIdURL>
         },
         styleSpec: StyleSpec = STYLESPEC
     ) {
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
 
-    convertCirclesIntoPaths(svgDoc)
-    console.log("converted circles to paths")
+    //convertCirclesIntoPaths(svgDoc)
+    //console.log("converted circles to paths")
 
     const geosjon = convertGroupsToGeoJson(svgDoc, specs.specifications)
     const testg = JSON.stringify(geosjon)
@@ -232,17 +298,60 @@ export function convertFromString
         "data": geojson
     }
 
-    const { sources, layers } = convertRectToGeoJson(svgDoc, specs.images)
+    /* const { sources, layers } = convertRectToGeoJson(svgDoc, specs.images!)
 
     Object.keys(sources)?.forEach(src => {
         style.sources[src] = sources[src]
     })
     layers.forEach(layer => {
         style.layers.push(layer)
-    })
+    }) */
 
 
     return style;
+}
+
+
+
+
+
+function convertElementToGeoJsonFeature(element: Node[]): Feature[] {
+    let feature: Feature[] = [];
+
+    const docGeoPos = new DOMParser().parseFromString(GEOITEMSVG, 'image/svg+xml');
+
+    // Clone the element and append it to the docGeoPos
+    element.forEach(node => {
+        const clonedElement = node.cloneNode(true);
+        docGeoPos.documentElement.appendChild(clonedElement);
+    });
+
+    const newSVGString = new XMLSerializer().serializeToString(docGeoPos);
+    console.log(newSVGString)
+    try {
+        // @ts-ignore
+        geoFromSVGXML(newSVGString, layer => {
+            if (layer.features.length > 0) {
+
+                /* layer.features.forEach((feature: { properties: { class: any; id: any; }; }) => {
+                    feature.properties = {
+                        "class": element.getAttribute('class') || '',
+                        "id": element.getAttribute('id') || uuidv4()
+                    };
+                }) */
+
+                feature = feature.concat(layer.features)
+            }
+        }, { layers: false });
+    } catch (error) {
+        console.error(error);
+    }
+
+    /* if (!feature) {
+        throw new Error("Failed to convert element to GeoJSON Feature");
+    } */
+
+    return feature;
 }
 
 
