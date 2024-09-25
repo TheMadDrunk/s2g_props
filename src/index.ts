@@ -210,8 +210,9 @@ function convertRectToGeoJson(svgDoc: Document, images: Array<ImageIdURL>) {
 
 export interface SVGNode {
     class: string,
-    classList: Array<string>,
-    properties: { [key: string]: string },
+    classList?: Array<string>,
+    id?: string,
+    properties?: { [key: string]: string },
     children?: Array<SVGNode>,
 }
 
@@ -219,15 +220,15 @@ export function convertFromStringv2(svgString: string, specs: SVGNode) {
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
 
-    const limit = 4;
+    const limit = 5;
     const rootElement = svgDoc.documentElement;
-    const features = convertTree(rootElement, specs, limit);
+    const features = convertTree(rootElement, specs, limit, { class: specs.class });
 
     return features;
 }
 
 
-function convertTree(element: Element, specs: SVGNode, limit: number): Feature[] {
+function convertTree(element: Element, specs: SVGNode, limit: number, treeProps: { [key: string]: string }): Feature[] {
     console.log(
         "--".repeat(limit) + "> "
         + "." + element.getAttribute('class')
@@ -239,30 +240,57 @@ function convertTree(element: Element, specs: SVGNode, limit: number): Feature[]
         return [];
     }
 
-
-    const svgSelector = specs.classList.map(className => "g." + className).join(', ');
-    const childrenElements = element.querySelectorAll(svgSelector)
-    let componentElements = Array.from(element.childNodes).filter(child => {
-        return child.nodeType === 1 && !(child as Element).matches(svgSelector);
-    });
-
-    console.log("all:", element?.childNodes?.length)
-    console.log("componentElements:", componentElements?.length)
-    console.log("childrenElements:", childrenElements.length)
-
+    if (!specs.classList && !specs.id) {
+        console.log("No classList or id found")
+        return [];
+    }
     let features: Feature[] = []
-    if (specs.children) {
-        specs.children.forEach(child => {
-            childrenElements.forEach(group => {
-                features = features.concat(convertTree(group, child, limit - 1))
+
+
+    if (specs.classList) {
+        const svgSelector = specs.classList.map(className => "g." + className).join(', ');
+        const childrenElements = element.querySelectorAll(svgSelector)
+        let componentElements = Array.from(element.childNodes).filter(child => {
+            return child.nodeType === 1 && !(child as Element).matches(svgSelector);
+        });
+
+        console.log("all:", element.childNodes.length);
+        console.log("componentElements:", componentElements?.length)
+        console.log("childrenElements:", childrenElements.length)
+        if (specs.children) {
+            specs.children.forEach(child => {
+                childrenElements.forEach((group,index) => {
+                    features = features.concat(convertTree(group, child, limit - 1,
+                      { ...treeProps, class: specs.class, [specs.class]: specs.class.substring(0, 3).toUpperCase() + (index + 1).toString() }))
+                })
             })
-        })
+        }
+        else{
+
+                childrenElements.forEach((group,index) => {
+                    features = features.concat(convertTree(group, specs, limit - 1,
+                      { ...treeProps, class: specs.class, [specs.class]: specs.class.substring(0, 3).toUpperCase() + (index + 1).toString() }))
+                })
+
+        }
+
+        if (componentElements.length > 0)
+            features = features.concat(convertElementToGeoJsonFeature(componentElements, treeProps))
+        /*if (!specs.children && childrenElements.length > 0)
+            features = features.concat(convertElementToGeoJsonFeature(Array.from(childrenElements), { ...treeProps, class: specs.class }))
+*/
+    }
+    else if (specs.id) {
+        const svgElement = element.querySelector(`#${specs.id}`)
+        if (!svgElement) {
+            console.log(`Id '${specs.id}' not found`)
+            return [];
+        }
+        features = convertElementToGeoJsonFeature([svgElement], { ...treeProps, class: specs.class })
     }
 
-    if (componentElements.length > 0)
-        features = features.concat(convertElementToGeoJsonFeature(componentElements))
-    if (!specs.children && childrenElements.length > 0)
-        features = features.concat(convertElementToGeoJsonFeature(Array.from(childrenElements)))
+    //console.log("features:", features.map(f => f.properties))
+
 
     return features;
 }
@@ -315,7 +343,7 @@ export function convertFromString
 
 
 
-function convertElementToGeoJsonFeature(element: Node[]): Feature[] {
+function convertElementToGeoJsonFeature(element: Node[], specprops: { [key: string]: string }): Feature[] {
     let feature: Feature[] = [];
 
     const docGeoPos = new DOMParser().parseFromString(GEOITEMSVG, 'image/svg+xml');
@@ -327,20 +355,23 @@ function convertElementToGeoJsonFeature(element: Node[]): Feature[] {
     });
 
     const newSVGString = new XMLSerializer().serializeToString(docGeoPos);
-    console.log(newSVGString)
     try {
         // @ts-ignore
         geoFromSVGXML(newSVGString, layer => {
             if (layer.features.length > 0) {
+                layer.features.forEach((feat: any, index: number) => {
+                    if(layer.features.length>1)
+                        feat.properties = {
+                            [specprops.class]: specprops.class.substring(0, 3).toUpperCase() + (index + 1).toString()
+                        };
 
-                /* layer.features.forEach((feature: { properties: { class: any; id: any; }; }) => {
-                    feature.properties = {
-                        "class": element.getAttribute('class') || '',
-                        "id": element.getAttribute('id') || uuidv4()
+                    feat.properties = {
+                        ...specprops,
+                        "id": uuidv4(),
                     };
-                }) */
+                });
 
-                feature = feature.concat(layer.features)
+                feature = feature.concat(layer.features);
             }
         }, { layers: false });
     } catch (error) {
