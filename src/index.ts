@@ -3,6 +3,7 @@ import { geoFromSVGXML } from 'svg2geojson';
 import { DOMParser, XMLSerializer } from 'xmldom-qsa';
 // @ts-ignore
 import { v4 as uuidv4 } from "uuid";
+import center from "@turf/center";
 
 
 export type Feature = {
@@ -42,8 +43,11 @@ export type ImageSource = {
 export type StyleLayer = {
     "id": string,
     "type": string,
-    "source": string,
-    paint: any
+    "source"?: string,
+    "filter"?: any,
+    "minzoom"?: any,
+    "layout"?: any,
+    paint: any,
 }
 
 type StyleSpec = {
@@ -74,9 +78,83 @@ const STYLESPEC: StyleSpec = {
                 "fill-color": "rgba(97, 92, 92, 1)",
                 "fill-translate-anchor": "map"
             }
+        },
+        {
+            "id": "seat",
+            "type": "fill",
+            "source": "svg",
+            "minzoom": 18,
+            "paint": {
+                "fill-color": "#A9A9A9"
+            },
+            "filter": [
+                "==",
+                "class",
+                "seat"
+            ]
+        },
+        {
+            "id": "seat-symbol",
+            "type": "symbol",
+            "source": "svg",
+            "minzoom": 18,
+            "layout": {
+                "text-field": [
+                    "get",
+                    "id"
+                ],
+                "text-font": [
+                    "Roboto Regular"
+                ],
+                "text-size": 12,
+                "text-justify": "center",
+                "text-transform": "uppercase"
+            },
+            "paint": {
+                "text-color": "#4D4D4D",
+                "text-halo-color": "white",
+                "text-halo-width": 1.5
+            },
+            "filter": [
+                "==",
+                "class",
+                "seat"
+            ]
+        },
+        {
+            "id": "symbol-section",
+            "type": "symbol",
+            "source": "svg",
+            "layout": {
+                "text-field": [
+                    "get",
+                    "section"
+                ],
+                "text-font": [
+                    "Roboto Regular"
+                ],
+                "text-size": 12,
+                "text-transform": "uppercase",
+                "text-letter-spacing": 0.05,
+                "text-offset": [
+                    0,
+                    1.5
+                ]
+            },
+            "paint": {
+                "text-color": "#4D4D4D",
+                "text-halo-color": "white",
+                "text-halo-width": 2
+            },
+            "filter": [
+                "==",
+                "class",
+                "section"
+            ]
         }
     ],
-    id: "90jrguv"
+    id: "90jrguv",
+
 };
 
 
@@ -134,6 +212,25 @@ function convertCirclesIntoPaths(doc: Document) {
 
         circle.parentNode?.replaceChild(path, circle);
     });
+}
+
+export function featuresToGeoJsonSource(features: Feature[]) {
+    let geojson = {
+        "type": "FeatureCollection",
+        "creator": "svg2geojson + properties",
+        "features": [...features]
+    };
+    return geojson;
+}
+
+export function featuresToStyleSpecification(features: Feature[]) {
+    let style = { ...STYLESPEC }
+    style.sources.svg = {
+        "type": "geojson",
+        "cluster": false,
+        "data": featuresToGeoJsonSource(features)
+    }
+    return style;
 }
 
 function convertGroupsToGeoJson(doc: Document, specifications: Array<Specification>): GeoJson {
@@ -259,18 +356,18 @@ function convertTree(element: Element, specs: SVGNode, limit: number, treeProps:
         console.log("childrenElements:", childrenElements.length)
         if (specs.children) {
             specs.children.forEach(child => {
-                childrenElements.forEach((group,index) => {
+                childrenElements.forEach((group, index) => {
                     features = features.concat(convertTree(group, child, limit - 1,
-                      { ...treeProps, class: specs.class, [specs.class]: specs.class.substring(0, 3).toUpperCase() + (index + 1).toString() }))
+                        { ...treeProps, class: specs.class, [specs.class]: specs.class.substring(0, 3).toUpperCase() + (index + 1).toString() }))
                 })
             })
         }
-        else{
+        else {
 
-                childrenElements.forEach((group,index) => {
-                    features = features.concat(convertTree(group, specs, limit - 1,
-                      { ...treeProps, class: specs.class, [specs.class]: specs.class.substring(0, 3).toUpperCase() + (index + 1).toString() }))
-                })
+            childrenElements.forEach((group, index) => {
+                features = features.concat(convertTree(group, specs, limit - 1,
+                    { ...treeProps, class: specs.class, [specs.class]: specs.class.substring(0, 3).toUpperCase() + (index + 1).toString() }))
+            })
 
         }
 
@@ -360,17 +457,30 @@ function convertElementToGeoJsonFeature(element: Node[], specprops: { [key: stri
         geoFromSVGXML(newSVGString, layer => {
             if (layer.features.length > 0) {
                 layer.features.forEach((feat: any, index: number) => {
-                    if(layer.features.length>1)
+                    if (layer.features.length > 1)
                         feat.properties = {
                             [specprops.class]: specprops.class.substring(0, 3).toUpperCase() + (index + 1).toString()
                         };
 
+                    const featId = uuidv4();
                     feat.properties = {
                         ...specprops,
-                        "id": uuidv4(),
+                        id:featId
                     };
+
+                    feat.id = featId;
+
                 });
 
+                if(specprops.class == "seat"){
+                    const pointFeature = layer.features.map((feat: GeoJSON.Feature) => {
+                        const point = center(feat)
+                        point.properties = feat.properties;
+                        return point;
+                    })
+                    feature = feature.concat(pointFeature)
+                }
+                else
                 feature = feature.concat(layer.features);
             }
         }, { layers: false });

@@ -9,6 +9,7 @@
   "author": "the_mad_drunk",
   "license": "ISC",
   "dependencies": {
+    "@turf/center": "^7.1.0",
     "@types/node": "^20.11.30",
     "events": "^3.3.0",
     "svg2geojson": "^0.7.1",
