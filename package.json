@@ -4,7 +4,8 @@
   "description": "covert svg to geosjon and allow to add properties to the geojson features",
   "main": "src/index.ts",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "npx ts-node src/test/test.ts"
   },
   "author": "the_mad_drunk",
   "license": "ISC",
@@ -12,11 +13,13 @@
     "@turf/center": "^7.1.0",
     "@types/node": "^20.11.30",
     "events": "^3.3.0",
+    "maplibre-gl": "^4.7.1",
     "svg2geojson": "^0.7.1",
     "uuid": "^9.0.1",
     "xmldom-qsa": "^1.1.3"
   },
   "devDependencies": {
-    "typescript": "^5.4.3"
+    "ts-node": "^10.9.2",
+    "typescript": "^5.6.2"
   }
 }

@@ -4,3 +4,5 @@ svg_examples
 dist
 src/test
 out.json
+*.svg
+out
