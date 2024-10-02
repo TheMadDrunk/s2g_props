@@ -6,6 +6,8 @@ import { v4 as uuidv4 } from "uuid";
 import center from "@turf/center";
 import {StyleSpecification} from "maplibre-gl";
 
+export type GeoJsonFeature = GeoJSON.Feature<GeoJSON.Geometry,GeoJSON.GeoJsonProperties>;
+
 const STYLESPEC: StyleSpecification = {
     version: 8,
     name: "Empty Style",
@@ -46,7 +48,7 @@ const GEOITEMSVG = `
             </MetaInfo>
         </svg>`
 
-export function featuresToGeoJsonSource(features: GeoJSON.Feature<GeoJSON.Geometry, GeoJSON.GeoJsonProperties>[]) {
+export function featuresToGeoJsonSource(features: GeoJsonFeature[]) {
     let geojson: GeoJSON.FeatureCollection = {
         "type": "FeatureCollection",
         "features": features
@@ -55,7 +57,7 @@ export function featuresToGeoJsonSource(features: GeoJSON.Feature<GeoJSON.Geomet
 }
 
 
-export function featuresToStyleSpecification(features: GeoJSON.Feature<GeoJSON.Geometry, GeoJSON.GeoJsonProperties>[]) {
+export function featuresToStyleSpecification(features: GeoJsonFeature[]) {
     let style = { ...STYLESPEC }
     style.sources.svg  = {
         "type": "geojson",
@@ -65,10 +67,12 @@ export function featuresToStyleSpecification(features: GeoJSON.Feature<GeoJSON.G
     return style;
 }
 
-export function convertFromStringv2(svgString: string, specs: SVGNode) {
+let debugMode = false;
+
+export function convertFromString(svgString: string, specs: SVGNode,debug: boolean = false) {
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(svgString, 'image/svg+xml');
-
+    debugMode = debug;
     const limit = 5;
     const rootElement = svgDoc.documentElement;
     const features = convertTree(rootElement, specs, limit, { class: specs.class });
@@ -76,23 +80,23 @@ export function convertFromStringv2(svgString: string, specs: SVGNode) {
     return features;
 }
 
-function convertTree(element: Element, specs: SVGNode, limit: number, treeProps: { [key: string]: string }): GeoJSON.Feature<GeoJSON.Geometry, GeoJSON.GeoJsonProperties>[] {
-    console.log(
+function convertTree(element: Element, specs: SVGNode, limit: number, treeProps: { [key: string]: string }): GeoJsonFeature[] {
+    debugMode && console.log(
         "--".repeat(limit) + "> "
         + "." + element.getAttribute('class')
         + "#" + element.getAttribute('id')
         + " on " + specs.class)
 
     if (limit <= 0) {
-        console.log("Limit reached")
+        debugMode && console.log("Limit reached")
         return [];
     }
 
     if (!specs.classList && !specs.id) {
-        console.log("No classList or id found")
+        debugMode && console.log("No classList or id found")
         return [];
     }
-    let features: GeoJSON.Feature<GeoJSON.Geometry, GeoJSON.GeoJsonProperties>[]= []
+    let features: GeoJsonFeature[]= []
 
 
     if (specs.classList) {
@@ -102,9 +106,9 @@ function convertTree(element: Element, specs: SVGNode, limit: number, treeProps:
             return child.nodeType === 1 && !(child as Element).matches(svgSelector);
         });
 
-        console.log("all:", element.childNodes.length);
-        console.log("componentElements:", componentElements?.length)
-        console.log("childrenElements:", childrenElements.length)
+        debugMode && console.log("all:", element.childNodes.length);
+        debugMode && console.log("componentElements:", componentElements?.length)
+        debugMode && console.log("childrenElements:", childrenElements.length)
         if (specs.children) {
             specs.children.forEach(child => {
                 childrenElements.forEach((group, index) => {
@@ -131,20 +135,20 @@ function convertTree(element: Element, specs: SVGNode, limit: number, treeProps:
     else if (specs.id) {
         const svgElement = element.querySelector(`#${specs.id}`)
         if (!svgElement) {
-            console.log(`Id '${specs.id}' not found`)
+            debugMode && console.log(`Id '${specs.id}' not found`)
             return [];
         }
         features = convertElementToGeoJsonFeature([svgElement], { ...treeProps, class: specs.class })
     }
 
-    //console.log("features:", features.map(f => f.properties))
+    //debugMode && console.log("features:", features.map(f => f.properties))
 
 
     return features;
 }
 
-function convertElementToGeoJsonFeature(element: Node[], specprops: { [key: string]: string }): GeoJSON.Feature<GeoJSON.Geometry, GeoJSON.GeoJsonProperties>[] {
-    let feature: GeoJSON.Feature<GeoJSON.Geometry, GeoJSON.GeoJsonProperties>[] = [];
+function convertElementToGeoJsonFeature(element: Node[], specprops: { [key: string]: string }): GeoJsonFeature[] {
+    let feature: GeoJsonFeature[] = [];
 
     const docGeoPos = new DOMParser().parseFromString(GEOITEMSVG, 'image/svg+xml');
 
@@ -188,7 +192,7 @@ function convertElementToGeoJsonFeature(element: Node[], specprops: { [key: stri
             }
         }, { layers: false });
     } catch (error) {
-        console.error(error);
+        debugMode && console.error(error);
     }
 
     /* if (!feature) {
@@ -196,6 +200,31 @@ function convertElementToGeoJsonFeature(element: Node[], specprops: { [key: stri
     } */
 
     return feature;
+}
+
+export function compareFeatures(featuresA: GeoJsonFeature[], featuresB: GeoJsonFeature[]): boolean {
+    if(featuresA.length != featuresB.length){
+        return false;
+    }
+
+    return true;
+}
+
+export function compare(featureA: GeoJsonFeature, featureB: GeoJsonFeature): string[] {
+    const differences : string[]= []
+    for(const key in featureB.properties) {
+        if(key === "id")
+            continue;
+        if(Object.prototype.hasOwnProperty.call(featureA.properties,key)){
+            // @ts-ignore
+            if(featureB.properties[key] !== featureA.properties[key]){
+                // @ts-ignore
+                differences.push(`${key}: ${featureB.properties[key]} =/= ${featureA.properties[key]}`);
+            }
+        }
+    }
+
+    return differences;
 }
 
 

@@ -2,7 +2,7 @@ node_modules/
 .idea
 svg_examples
 dist
-src/test
+tests
 out.json
 *.svg
-out
+test_cases
