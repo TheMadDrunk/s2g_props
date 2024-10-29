@@ -1,6 +1,8 @@
 # svg2geojson-properties
 
-This package provides a function `convertFromString` to convert SVG data into a map style format compatible with tools like Mapbox and MapLibre. It adds properties, including a UUID, to the features based on provided configurations and includes additional images with layers to make them visible on the map.
+This package provides a function `convertFromString` to convert SVG data into a GeoJSON format with hierarchical
+properties. It's particularly useful for converting venue/stadium layouts where elements have a natural hierarchy (e.g.,
+Stadium → Section → Row → Seat).
 
 ## Installation
 
@@ -12,100 +14,128 @@ npm install s2g_props
 
 ## Usage
 
-```javascript
+```typescript
 const fs = require('fs');
-const { convertFromString } = require('svg2_props');
+const {convertFromString} = require('s2g_props');
 
-const svgString = fs.readFileSync('path/to/your/svg/file.svg').toString();
-const props = fs.readFileSync('path/to/your/config.json').toString();
-const propsParsed = JSON.parse(props);
+const svgString = fs.readFileSync('path/to/your/svg/file.svg', 'utf8');
+const specs = {
+  class: "stadium",
+  classList: ["Stadium"],
+  prefix: "",
+  children: [{
+    class: "section",
+    classList: ["Section"],
+    prefix: "",
+    children: [{
+      prefix: "",
+      class: "row",
+      classList: ["Row"],
+      children: [{
+        prefix: "",
+        class: "seat",
+        classList: ["Seat"],
+      }]
+    }]
+  }]
+} as SVGNode;
 
-const mapStyleData = convertFromString(svgString, propsParsed);
-
-fs.writeFileSync('output_map_style.json', JSON.stringify(mapStyleData));
+const geoJSON = convertFromString(svgString, specs);
+fs.writeFileSync('output.json', JSON.stringify(geoJSON));
 ```
 
 ### Parameters
 
-- `svgString` (string): SVG data to convert.
-- `config` (object): Configuration object containing class names, properties, and images.
-- `styleSpec` (object)(optional): give it the template of your style specs it will add the source and the necessary style layers
-### Example `props.json`
+- `svgString` (string): SVG data to convert
+- `specs` (SVGNode): Configuration object defining the hierarchy and properties
 
-```json
-{
-    "specifications" : [
-        {
-            "classList": ["stadium"],
-            "properties":{
-                "class":"stadium"
-            }
-        },
-        {
-            "classList":["field"],
-            "properties":{
-                "class":"field"
-            }
-        },
-        {
-            "classList":["grandstand1","grandstand2","grandstand3","grandstand4"],
-            "properties":{
-                "class":"grandstand"
-            }
-        }
-    ],
-    "images" : [
-        {
-            "id": "image",
-            "imageURL": "yourimageurl.jpg"
-        }
-    ]
+### Configuration Structure (SVGNode)
+
+The configuration uses a tree structure where each node can have the following properties:
+
+```typescript
+interface SVGNode {
+  class: string;        // The property name to assign
+  classList: string[];  // SVG class names to match
+  prefix: string;       // Optional prefix for generated IDs
+  children?: SVGNode[]; // Optional child nodes for hierarchy
 }
 ```
 
-## Output
+#### Example Configuration
 
-The function returns a map style object containing the converted SVG to GeoJSON and additional images with layers to make them visible on the map.
+```typescript
+const specs = {
+  class: "stadium",           // Will create a "stadium" property
+  classList: ["Stadium"],     // Matches SVG elements with class "Stadium"
+  prefix: "",
+  children: [{
+    class: "section",
+    classList: ["Section"],
+    prefix: "",
+    children: [{
+      class: "row",
+      classList: ["Row"],
+      children: [{
+        class: "seat",
+        classList: ["Seat"],
+      }]
+    }]
+  }]
+};
+```
+
+### SVG Requirements
+
+Your SVG file should use classes that match the `classList` values in your configuration. For example:
+
+```svg
+
+<svg>
+    <path class="Stadium" d="..."/>
+    <path class="Section" d="..."/>
+    <path class="Row" d="..."/>
+    <path class="Seat" d="..."/>
+</svg>
+```
+
+### Output
+
+The function returns a GeoJSON object where each feature includes properties based on the hierarchical configuration.
+For example:
 
 ```json
 {
-  "metadata": {
-    "maputnik:renderer": "mlgljs"
-  },
-  "sources": {
-    "svg": {
-      "type": "geojson",
-      "cluster": false,
-      "data": // the converted svg to geojson
-    },
-    "image": {
-      "url": "yourimageurl.jpg",
-      "coordinates": //coordinates that we got from a path with id = image (like in the config)
-      "type": "image"
-    }
-  },
-  "sprite": "",
-  "glyphs": "https://orangemug.github.io/font-glyphs/glyphs/{fontstack}/{range}.pbf",
-  "layers": [
+  "type": "FeatureCollection",
+  "features": [
     {
-      "id": "visisbleSvg",
-      "type": "fill",
-      "source": "svg",
-      "paint": {
-        "fill-opacity": 0.7,
-        "fill-color": "rgba(97, 92, 92, 1)",
-        "fill-translate-anchor": "map"
+      "type": "Feature",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          ...
+        ]
+      },
+      "properties": {
+        "stadium": "stadium1",
+        "section": "section1",
+        "row": "row1",
+        "seat": "seat1",
+        "id": "unique-generated-id"
       }
-    },
-    {
-      "id": "image",
-      "type": "raster",
-      "source": "image"
     }
-  ],
-  "id": "90jrguv"
+  ]
 }
 ```
+
+## Migration from Previous Versions
+
+If you're upgrading from a previous version that used the flat configuration format with `specifications` and `images`,
+you'll need to:
+
+1. Replace the flat specifications array with a hierarchical configuration
+2. Remove the `images` configuration as it's no longer supported
+3. Update your code to handle the new GeoJSON output format
 
 ## License
 
